@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import Scene from './components/Scene'
+import CameraRig from './components/CameraRig'
 
 function App() {
   return (
@@ -7,6 +8,7 @@ function App() {
       <Canvas camera={{ position: [0, 0, 16], fov: 50 }}>
         <color attach="background" args={['#05050a']} />
         <Scene />
+        <CameraRig />
       </Canvas>
     </div>
   )
