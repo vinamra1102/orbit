@@ -32,25 +32,35 @@ export interface StackEdge {
 }
 
 const PROJECTS = {
-  certWatch: { name: 'CertWatch', role: 'Developer', link: '#', dateRange: '2024' },
+  certWatch: {
+    name: 'CertWatch',
+    role: 'Developer',
+    link: 'https://github.com/vinamra1102/CertWatch-certificate_checker-Frontend-',
+    dateRange: '2026 – present',
+  },
   webVulnScanner: {
     name: 'Web Vulnerability Scanner',
     role: 'Developer',
-    link: '#',
-    dateRange: '2024',
+    link: 'https://github.com/vinamra1102/webVulnerabilityScanner',
+    dateRange: '2025 – 2026',
   },
   sqliteForensic: {
     name: 'SQLite Forensic Recovery Tool',
     role: 'Developer',
-    link: '#',
+    link: 'https://github.com/vinamra1102/sqlite-forensic-recovery-tool',
+    dateRange: '2025',
+  },
+  promptFirewall: {
+    name: 'Prompt Firewall',
+    role: 'Developer',
+    link: 'https://github.com/vinamra1102',
     dateRange: '2024',
   },
-  promptFirewall: { name: 'Prompt Firewall', role: 'Developer', link: '#', dateRange: '2024' },
   tanstackPR: {
     name: 'TanStack Query PR #10747',
-    role: 'Developer',
-    link: '#',
-    dateRange: '2024',
+    role: 'Contributor',
+    link: 'https://github.com/TanStack/query/pull/10747',
+    dateRange: '2026',
   },
 } satisfies Record<string, Project>
 
