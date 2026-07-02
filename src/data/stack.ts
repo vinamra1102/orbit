@@ -212,6 +212,12 @@ const PROJECTS = {
     link: 'https://github.com/vinamra1102/LeetCode-Questions',
     dateRange: '2025',
   },
+  shiftCipher: {
+    name: 'Shift Cipher (Lex/C)',
+    role: 'Developer',
+    link: 'https://github.com/vinamra1102/ShiftCipher-UsingLex',
+    dateRange: '2025 – 2026',
+  },
 } satisfies Record<string, Project>
 
 // Which node ids each project touches — the single source of truth used to
@@ -249,6 +255,7 @@ const PROJECT_NODES: Record<keyof typeof PROJECTS, string[]> = {
   hasherTool: ['python'],
   hashiraAssignment: ['java'],
   leetcodeQuestions: ['java'],
+  shiftCipher: ['c', 'lex'],
 }
 
 function projectsFor(nodeId: string): Project[] {
@@ -265,6 +272,7 @@ const SEED_NODES: SeedNode[] = [
   { id: 'java', label: 'Java', category: 'language', weight: 5 },
   { id: 'javascript', label: 'JavaScript', category: 'language', weight: 7 },
   { id: 'typescript', label: 'TypeScript', category: 'language', weight: 9 },
+  { id: 'c', label: 'C', category: 'language', weight: 3 },
 
   // Frontend
   { id: 'react', label: 'React', category: 'frontend', weight: 8 },
@@ -275,18 +283,14 @@ const SEED_NODES: SeedNode[] = [
   // Backend
   { id: 'nodejs', label: 'Node.js', category: 'backend', weight: 6 },
   { id: 'flask', label: 'Flask', category: 'backend', weight: 5 },
-  { id: 'spring-boot', label: 'Spring Boot', category: 'backend', weight: 5 },
 
   // Databases
-  { id: 'mysql', label: 'MySQL', category: 'database', weight: 4 },
   { id: 'sqlite', label: 'SQLite', category: 'database', weight: 5 },
   { id: 'postgresql', label: 'PostgreSQL', category: 'database', weight: 5 },
   { id: 'mongodb', label: 'MongoDB', category: 'database', weight: 4 },
 
   // APIs
   { id: 'rest', label: 'REST', category: 'api', weight: 6 },
-  { id: 'graphql', label: 'GraphQL', category: 'api', weight: 4 },
-  { id: 'oauth2', label: 'OAuth 2.0', category: 'api', weight: 5 },
   { id: 'jwt', label: 'JWT', category: 'api', weight: 5 },
   { id: 'firebase', label: 'Firebase', category: 'api', weight: 6 },
 
@@ -295,6 +299,7 @@ const SEED_NODES: SeedNode[] = [
   { id: 'docker', label: 'Docker', category: 'devtool', weight: 5 },
   { id: 'pnpm', label: 'pnpm', category: 'devtool', weight: 3 },
   { id: 'vitest', label: 'Vitest', category: 'devtool', weight: 5 },
+  { id: 'lex', label: 'Lex', category: 'devtool', weight: 2 },
 
   // Security
   { id: 'wireshark', label: 'Wireshark', category: 'security', weight: 5 },
