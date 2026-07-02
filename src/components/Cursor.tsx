@@ -47,34 +47,64 @@ export function CursorProjector() {
   return null
 }
 
-const DOT_COLOR = '#c8d4e8'
-const RETICLE_COLOR = '#ffcf87'
+// Cool default core / warm hero-accent core when hovering a node, plus the
+// cooler trail tint. All drawn additively so overlaps read as glow.
+type RGB = [number, number, number]
+const CORE_COOL: RGB = [200, 212, 232] // #c8d4e8
+const CORE_WARM: RGB = [255, 207, 135] // #ffcf87 (hero accent)
+const TRAIL_COOL: RGB = [143, 179, 217] // #8fb3d9
+const TRAIL_WARM: RGB = [255, 207, 135]
+
+const POOL = 14 // fixed-size, reused trail buffer — no per-frame allocation
+const BURST_MS = 150
+
+function mix(a: RGB, b: RGB, t: number): RGB {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
+}
 
 /**
- * DOM overlay cursor. Fixed-position, pointer-events: none, driven by rAF
- * to keep hover state out of React's render loop. Morphs between a soft
- * dot (default) and a snap-locked reticle (hovering a node), pulses on
- * click, and hides entirely when the pointer is over UI chrome (elements
- * marked with data-cursor-hide) or outside the window.
+ * Comet-trail cursor. A full-viewport 2D <canvas> overlay (fixed,
+ * pointer-events: none) driven entirely by rAF + direct canvas draws, so no
+ * React re-render happens on mousemove. A glowing core dot leads a tapering
+ * trail of recent head positions; the trail stretches on fast moves and
+ * bunches on slow ones because the head lerps toward its target with lag.
+ * Hovering a node snaps the core to the node's projected screen center,
+ * warms/brightens the comet, and lengthens the tail; clicking scatters the
+ * trail outward and pulses the core. Hides over UI chrome (data-cursor-hide)
+ * or off-canvas. Falls back to a plain static dot under prefers-reduced-motion.
  */
 export function Cursor() {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const dotRef = useRef<HTMLDivElement>(null)
-  const reticleRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const root = rootRef.current
-    const dot = dotRef.current
-    const reticle = reticleRef.current
-    if (!root || !dot || !reticle) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    // Rendered state — lerps toward cursorTarget each frame.
-    let x = -100
-    let y = -100
-    let morph = 0 // 0 = pure dot, 1 = pure reticle
+    let dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = Math.floor(window.innerWidth * dpr)
+      canvas.height = Math.floor(window.innerHeight * dpr)
+      // Draw in CSS pixels; the transform absorbs the dpr scale.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+    resize()
+
+    // Rendered head state and the reused trail ring buffer.
+    let headX = cursorTarget.mouseX
+    let headY = cursorTarget.mouseY
+    let vis = 0 // eased visibility 0..1
+    let hover = 0 // eased hover 0..1
     let clickAt = -Infinity
+    const trailX = new Float32Array(POOL).fill(headX)
+    const trailY = new Float32Array(POOL).fill(headY)
+    const burstA = new Float32Array(POOL) // per-slot scatter angle, set once
+    for (let i = 0; i < POOL; i++) burstA[i] = Math.random() * Math.PI * 2
+    let writeIdx = 0
 
     const onMove = (e: MouseEvent) => {
       cursorTarget.mouseX = e.clientX
@@ -102,56 +132,116 @@ export function Cursor() {
     const onLeaveWindow = () => {
       cursorTarget.overCanvas = false
     }
-
     const onDown = () => {
       clickAt = performance.now()
     }
 
     window.addEventListener('mousemove', onMove)
     window.addEventListener('pointerdown', onDown)
+    window.addEventListener('resize', resize)
     document.documentElement.addEventListener('pointerleave', onLeaveWindow)
 
-    // Initialise render position to current mouse so first frame doesn't
-    // fly in from off-screen.
-    x = cursorTarget.mouseX
-    y = cursorTarget.mouseY
+    const drawBlob = (px: number, py: number, r: number, color: RGB, alpha: number, glow: number) => {
+      if (alpha <= 0.002 || r <= 0.05) return
+      ctx.globalAlpha = Math.min(alpha, 1)
+      ctx.fillStyle = `rgb(${color[0] | 0}, ${color[1] | 0}, ${color[2] | 0})`
+      ctx.shadowColor = ctx.fillStyle
+      ctx.shadowBlur = glow
+      ctx.beginPath()
+      ctx.arc(px, py, r, 0, Math.PI * 2)
+      ctx.fill()
+    }
 
     let rafId = 0
     const tick = () => {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      ctx.clearRect(0, 0, w, h)
+
       const hoveredId = useSelectionStore.getState().hoveredId
-      const visible = cursorTarget.overCanvas && !cursorTarget.overChrome
-      const snapping = hoveredId !== null && visible
+      const rawVisible = cursorTarget.overCanvas && !cursorTarget.overChrome
+      const snapping = hoveredId !== null && rawVisible
 
       const targetX = snapping ? cursorTarget.snapX : cursorTarget.mouseX
       const targetY = snapping ? cursorTarget.snapY : cursorTarget.mouseY
 
+      // Reduced motion: plain static dot, no trail, no easing, no burst.
       if (reducedMotion) {
-        x = targetX
-        y = targetY
-        morph = snapping ? 1 : 0
-      } else {
-        x += (targetX - x) * 0.22
-        y += (targetY - y) * 0.22
-        morph += ((snapping ? 1 : 0) - morph) * 0.18
+        if (rawVisible) drawBlob(cursorTarget.mouseX, cursorTarget.mouseY, 3, CORE_COOL, 1, 6)
+        ctx.globalAlpha = 1
+        ctx.shadowBlur = 0
+        rafId = requestAnimationFrame(tick)
+        return
       }
 
-      // Click pulse — ~100ms scale dip, quick recovery.
-      const dt = performance.now() - clickAt
-      const pulse = !reducedMotion && dt < 100 ? 0.82 : 1
+      vis += ((rawVisible ? 1 : 0) - vis) * 0.2
+      hover += ((snapping ? 1 : 0) - hover) * 0.15
 
-      // Snapped hover slightly boosts brightness to match node highlight.
-      const glowBoost = 1 + morph * 0.35
+      // Snap tracks a touch tighter than free movement so the reticle-like
+      // lock onto a node feels deliberate.
+      const ease = snapping ? 0.3 : 0.22
+      headX += (targetX - headX) * ease
+      headY += (targetY - headY) * ease
 
-      root.style.transform = `translate3d(${x}px, ${y}px, 0)`
-      root.style.opacity = visible ? '1' : '0'
+      // While hidden, collapse the trail onto the head so re-entry doesn't
+      // draw a streak from the last on-screen position.
+      if (vis < 0.02) {
+        for (let i = 0; i < POOL; i++) {
+          trailX[i] = headX
+          trailY[i] = headY
+        }
+        ctx.globalAlpha = 1
+        ctx.shadowBlur = 0
+        rafId = requestAnimationFrame(tick)
+        return
+      }
 
-      const dotAlpha = (1 - morph) * pulse * glowBoost
-      dot.style.opacity = String(Math.min(1, dotAlpha))
-      dot.style.transform = `translate(-50%, -50%) scale(${pulse})`
+      // Record the head into the ring buffer once per frame.
+      trailX[writeIdx] = headX
+      trailY[writeIdx] = headY
+      writeIdx = (writeIdx + 1) % POOL
+      const newest = (writeIdx - 1 + POOL) % POOL
 
-      const reticleAlpha = morph * pulse
-      reticle.style.opacity = String(reticleAlpha)
-      reticle.style.transform = `translate(-50%, -50%) scale(${(0.75 + morph * 0.25) * pulse})`
+      const bt = (performance.now() - clickAt) / BURST_MS // 0..1 during burst
+      const bursting = bt >= 0 && bt < 1
+      const burstOut = bursting ? 1 - bt : 0
+
+      const coreColor = mix(CORE_COOL, CORE_WARM, hover)
+      const trailColor = mix(TRAIL_COOL, TRAIL_WARM, hover)
+
+      // Additive blending: overlapping trail + core accumulate into glow.
+      ctx.globalCompositeOperation = 'lighter'
+
+      // Trail: oldest (k=0) tapers to nothing, newest handled by the core.
+      for (let k = 0; k < POOL; k++) {
+        const idx = (writeIdx + k) % POOL
+        if (idx === newest) continue
+        const t = k / (POOL - 1) // 0 oldest .. 1 newest
+        let px = trailX[idx]
+        let py = trailY[idx]
+        if (bursting) {
+          // Older particles scatter further; whole burst decays outward.
+          const mag = burstOut * 16 * (1 - t)
+          px += Math.cos(burstA[idx]) * mag
+          py += Math.sin(burstA[idx]) * mag
+        }
+        const lenBoost = 1 + hover * 0.45 // gravity from the node lengthens it
+        let a = t * t * (0.5 + hover * 0.35) * lenBoost * vis
+        if (bursting) a *= 1 - bt // fade faster mid-burst
+        const r = 0.6 + 2.2 * t
+        drawBlob(px, py, r, trailColor, a, 6 + hover * 4)
+      }
+
+      // Core dot: brighter/larger glow on hover, quick scale pop on click.
+      const coreScale = bursting ? 1 + 0.6 * Math.sin(bt * Math.PI) : 1
+      const coreR = (2.8 + hover * 1.4) * coreScale
+      const coreGlow = 8 + hover * 18
+      drawBlob(headX, headY, coreR, coreColor, vis, coreGlow)
+
+      // Reset shared state so nothing else (or the next frame) inherits it.
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.globalAlpha = 1
+      ctx.shadowBlur = 0
 
       rafId = requestAnimationFrame(tick)
     }
@@ -161,65 +251,16 @@ export function Cursor() {
       cancelAnimationFrame(rafId)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('resize', resize)
       document.documentElement.removeEventListener('pointerleave', onLeaveWindow)
     }
   }, [])
 
   return (
-    <div
-      ref={rootRef}
+    <canvas
+      ref={canvasRef}
       aria-hidden
-      className="pointer-events-none fixed left-0 top-0 z-50"
-      style={{ opacity: 0, willChange: 'transform, opacity', transition: 'opacity 120ms ease' }}
-    >
-      <div ref={dotRef} className="absolute" style={{ transform: 'translate(-50%, -50%)' }}>
-        <div
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 999,
-            background: DOT_COLOR,
-            boxShadow: `0 0 12px 2px ${DOT_COLOR}66, 0 0 4px 1px ${DOT_COLOR}cc`,
-          }}
-        />
-      </div>
-      <div
-        ref={reticleRef}
-        className="absolute"
-        style={{ transform: 'translate(-50%, -50%)', opacity: 0 }}
-      >
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-          <circle
-            cx="16"
-            cy="16"
-            r="10"
-            stroke={RETICLE_COLOR}
-            strokeWidth="1"
-            opacity="0.9"
-            style={{ filter: `drop-shadow(0 0 3px ${RETICLE_COLOR})` }}
-          />
-          <line x1="16" y1="1" x2="16" y2="5" stroke={RETICLE_COLOR} strokeWidth="1" opacity="0.75" />
-          <line
-            x1="16"
-            y1="27"
-            x2="16"
-            y2="31"
-            stroke={RETICLE_COLOR}
-            strokeWidth="1"
-            opacity="0.75"
-          />
-          <line x1="1" y1="16" x2="5" y2="16" stroke={RETICLE_COLOR} strokeWidth="1" opacity="0.75" />
-          <line
-            x1="27"
-            y1="16"
-            x2="31"
-            y2="16"
-            stroke={RETICLE_COLOR}
-            strokeWidth="1"
-            opacity="0.75"
-          />
-        </svg>
-      </div>
-    </div>
+      className="pointer-events-none fixed inset-0 z-50 h-screen w-screen"
+    />
   )
 }
