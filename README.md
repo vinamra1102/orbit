@@ -1,32 +1,37 @@
-# React + TypeScript + Vite
+# Orbit
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+An interactive 3D tech stack constellation — my stack and real project history rendered as a navigable node graph.
 
-Currently, two official plugins are available:
+Each sphere is a technology, sized by how much I use it and colored by category. Edges connect technologies that shipped together in a real project — the more projects they share, the stronger the line. Hover a node to light up its neighborhood; click it to inspect the projects behind it.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+![Orbit demo](docs/demo.gif)
+<!-- TODO: replace with an actual gif/screenshot of the constellation -->
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Precomputed force-directed 3D layout (no live physics) with category clustering
+- Idle auto-rotate camera that pauses while you interact and resumes after 5s
+- Hover highlighting: connected nodes and edges brighten, everything else dims
+- Click-to-inspect side panel with each technology's project history
+- Selection state kept out of the scene graph via narrow zustand selectors, so hover never re-renders the full constellation
 
-## Expanding the Oxlint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+| Layer | Choice |
+| --- | --- |
+| Framework | React 19 + TypeScript + Vite |
+| 3D | react-three-fiber + @react-three/drei (three.js) |
+| State | zustand |
+| UI chrome | Tailwind CSS |
+| Panel transitions | framer-motion |
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## Running locally
+
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Data
+
+All nodes, edges, and project mappings live in [`src/data/stack.ts`](src/data/stack.ts). Edges are derived, not hand-drawn: two technologies get an edge if they co-occur in a project, with strength equal to the number of shared projects.
