@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import Scene from './components/Scene'
 import CameraRig from './components/CameraRig'
 import SidePanel from './components/SidePanel'
+import Header from './components/Header'
 import { useSelectionStore } from './store/selection'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         <Scene />
         <CameraRig />
       </Canvas>
+      <Header />
       <SidePanel />
     </div>
   )
