@@ -13,6 +13,7 @@ function SidePanel() {
       {node && (
         <motion.aside
           key={node.id}
+          data-cursor-hide
           initial={{ x: '100%' }}
           animate={{ x: 0 }}
           exit={{ x: '100%' }}

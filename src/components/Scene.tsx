@@ -38,10 +38,6 @@ const HERO_GLOW_BOOST = 1.9
 // Only the brightest stars carry a label at rest; the rest reveal on hover.
 const LABEL_WEIGHT_THRESHOLD = 6
 
-function setCursor(pointer: boolean) {
-  document.body.style.cursor = pointer ? 'pointer' : 'auto'
-}
-
 const NodeMesh = memo(function NodeMesh({ node }: { node: StackNode }) {
   const position = nodePositions.get(node.id)!
   const radius = radiusFor(node.weight)
@@ -91,11 +87,9 @@ const NodeMesh = memo(function NodeMesh({ node }: { node: StackNode }) {
         onPointerOver={(e) => {
           e.stopPropagation()
           setHovered(node.id)
-          setCursor(true)
         }}
         onPointerOut={() => {
           setHovered(null)
-          setCursor(false)
         }}
         onClick={(e) => {
           e.stopPropagation()
