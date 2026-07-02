@@ -39,9 +39,12 @@ function computeLayout(): Map<string, Vec3> {
     return [c[0] + (rand() - 0.5) * 2, c[1] + (rand() - 0.5) * 2, c[2] + (rand() - 0.5) * 2]
   })
 
-  const REPULSION = 4.0
-  const SPRING = 0.04
-  const SPRING_LENGTH = 3.0
+  // Tuned for a dense graph: with edges derived from ~30 projects the hub
+  // nodes would otherwise collapse into a knot, so repulsion is strong and
+  // springs are soft.
+  const REPULSION = 14.0
+  const SPRING = 0.015
+  const SPRING_LENGTH = 4.0
   const CATEGORY_PULL = 0.015
   const ITERATIONS = 300
 
