@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import Scene from './components/Scene'
 import CameraRig from './components/CameraRig'
 import SidePanel from './components/SidePanel'
@@ -19,10 +20,12 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-[#05050a]">
-      <Canvas camera={{ position: [0, 0, 16], fov: 50 }} onPointerMissed={clear}>
-        <color attach="background" args={['#05050a']} />
+      <Canvas camera={{ position: [0, 0, 18], fov: 50 }} onPointerMissed={clear}>
         <Scene />
         <CameraRig />
+        <EffectComposer>
+          <Bloom mipmapBlur intensity={0.85} luminanceThreshold={0.35} radius={0.75} />
+        </EffectComposer>
       </Canvas>
       <Header />
       <SidePanel />

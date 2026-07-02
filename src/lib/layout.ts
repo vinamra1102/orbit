@@ -15,15 +15,16 @@ function mulberry32(seed: number) {
 }
 
 // Rough angular home for each category so clusters read as regions
-// of the constellation rather than a uniform ball.
+// of the constellation rather than a uniform ball. Z values are spread
+// wide so density reads as 3D depth instead of a flat crowd.
 const CATEGORY_CENTERS: Record<Category, Vec3> = {
   language: [0, 0.5, 0],
-  frontend: [-3.5, 1.5, 1],
-  backend: [3.5, 1.5, -1],
-  database: [3, -2.5, 1.5],
-  api: [-0.5, -3, -1.5],
-  security: [-3.5, -1, -2.5],
-  devtool: [0.5, 3.5, -2],
+  frontend: [-3.5, 1.5, 2.5],
+  backend: [3.5, 1.5, -2.5],
+  database: [3, -2.5, 3],
+  api: [-0.5, -3, -3],
+  security: [-3.5, -1, -3.5],
+  devtool: [0.5, 3.5, 3],
 }
 
 /**
@@ -36,7 +37,7 @@ function computeLayout(): Map<string, Vec3> {
   const index = new Map(nodes.map((n, i) => [n.id, i]))
   const pos: Vec3[] = nodes.map((n) => {
     const c = CATEGORY_CENTERS[n.category]
-    return [c[0] + (rand() - 0.5) * 2, c[1] + (rand() - 0.5) * 2, c[2] + (rand() - 0.5) * 2]
+    return [c[0] + (rand() - 0.5) * 2, c[1] + (rand() - 0.5) * 2, c[2] + (rand() - 0.5) * 3]
   })
 
   // Tuned for a dense graph: with edges derived from ~30 projects the hub
@@ -118,11 +119,13 @@ function computeLayout(): Map<string, Vec3> {
     const dz = p[2] - centroid[2]
     maxDist = Math.max(maxDist, Math.sqrt(dx * dx + dy * dy + dz * dz))
   }
-  const scale = 6 / maxDist
+  // Wider spread than the constellation strictly needs so labels have room,
+  // with extra Z stretch for depth parallax.
+  const scale = 7.5 / maxDist
   for (const p of pos) {
     p[0] = (p[0] - centroid[0]) * scale
     p[1] = (p[1] - centroid[1]) * scale
-    p[2] = (p[2] - centroid[2]) * scale
+    p[2] = (p[2] - centroid[2]) * scale * 1.3
   }
 
   return new Map(nodes.map((n) => [n.id, pos[index.get(n.id)!]]))
@@ -130,18 +133,29 @@ function computeLayout(): Map<string, Vec3> {
 
 export const nodePositions: Map<string, Vec3> = computeLayout()
 
+/** Points of light, not solid balls: weight 1-10 maps to ~0.15-0.5. */
 export function radiusFor(weight: number): number {
-  return 0.22 + weight * 0.055
+  return 0.15 + ((weight - 1) / 9) * 0.35
 }
 
+// Muted, cool night-sky palette. Categories stay distinguishable but nothing
+// competes with the single warm hero star.
 export const CATEGORY_COLORS: Record<Category, string> = {
-  language: '#f5b942', // amber
-  frontend: '#38bdf8', // sky blue
-  backend: '#34d399', // emerald
-  database: '#a78bfa', // violet
-  api: '#f472b6', // pink
-  security: '#f43f5e', // red — must read distinctly from frontend/backend
-  devtool: '#94a3b8', // slate
+  language: '#aebfdd', // steel blue-white
+  frontend: '#7fa8d9', // soft blue
+  backend: '#7cbcab', // desaturated teal
+  database: '#9d92c9', // muted violet
+  api: '#b394bd', // muted mauve
+  security: '#bd8698', // muted rose — still reads distinctly warm-ish
+  devtool: '#8d97a9', // slate
+}
+
+/** The brightest star in the constellation — warm accent, everything else cool. */
+export const HERO_ID = 'typescript'
+const HERO_COLOR = '#ffcf87'
+
+export function colorFor(nodeId: string, category: Category): string {
+  return nodeId === HERO_ID ? HERO_COLOR : CATEGORY_COLORS[category]
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {

@@ -32,7 +32,7 @@ function CameraRig() {
     <OrbitControls
       ref={controlsRef}
       autoRotate
-      autoRotateSpeed={0.6}
+      autoRotateSpeed={0.25}
       enablePan={false}
       minDistance={6}
       maxDistance={30}
